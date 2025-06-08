@@ -704,13 +704,24 @@ chmod +x build_led_blink.sh
 📸 Screenshot of blinking logic disassembly or ELF sections
 
 ---
+# RISC-V Tasks 13-17: Advanced Topics
 
-## Task 13: Interrupt Handling (MTIP)
+## Task 13: Interrupt Primer (MTIP Handler)
 
 ### 🎯 Objective
-Enable the machine-timer interrupt (MTIP) and write a simple handler in C/assembly.
+Enable the machine-timer interrupt (MTIP) and write a simple handler in C/assembly to demonstrate interrupt handling in RISC-V bare-metal programming.
 
-### 🛠️ Files & Implementation
+### 📁 File Structure
+```
+~/Desktop/vsdflow/task13/
+├── timer_interrupt.c
+├── trap_handler.s
+├── startup13.s
+├── linker13.ld
+└── timer.elf
+```
+
+### 💻 Code Files
 
 #### timer_interrupt.c
 ```c
@@ -718,6 +729,7 @@ Enable the machine-timer interrupt (MTIP) and write a simple handler in C/assemb
 #define UART_READY 0x10000005
 #define MTIME 0x0200BFF8
 #define MTIMECMP 0x02004000
+
 typedef unsigned int uint32_t;
 typedef unsigned long long uint64_t;
 
@@ -736,15 +748,19 @@ void timer_handler(void) {
     uart_puts("MTIP\n");
     volatile uint64_t* mtime = (volatile uint64_t*)MTIME;
     volatile uint64_t* mtimecmp = (volatile uint64_t*)MTIMECMP;
-    *mtimecmp = *mtime + 1000000;
+    *mtimecmp = *mtime + 1000000;  // Reset timer for next interrupt
 }
 
 void enable_timer_interrupt(void) {
     volatile uint64_t* mtime = (volatile uint64_t*)MTIME;
     volatile uint64_t* mtimecmp = (volatile uint64_t*)MTIMECMP;
-    *mtimecmp = *mtime + 1000000;
+    *mtimecmp = *mtime + 1000000;  // Set initial timer
+    
+    // Enable machine timer interrupt (bit 7 in MIE)
     asm volatile("li t0, 0x80");
     asm volatile("csrs mie, t0");
+    
+    // Enable global interrupts (bit 3 in MSTATUS)
     asm volatile("csrs mstatus, 0x8");
 }
 
@@ -752,6 +768,7 @@ int main() {
     uart_putc('A');
     enable_timer_interrupt();
     uart_puts("Timer enabled\n");
+    
     while (1) {
         uart_putc('.');
         for (volatile int i = 0; i < 100000; i++);
@@ -761,268 +778,700 @@ int main() {
 ```
 
 #### trap_handler.s
-```asm
+```assembly
 .section .text
 .global trap_handler
 .align 4
+
 trap_handler:
+    # Save context
     addi sp, sp, -64
     sw ra, 0(sp)
     sw t0, 4(sp)
     sw t1, 8(sp)
+    
+    # Check if it's a timer interrupt (mcause = 0x80000007)
     csrr t0, mcause
-    li t1, 0x80000007       # Check for MTIP interrupt
+    li t1, 0x80000007
     bne t0, t1, skip
+    
+    # Call timer handler
     jal timer_handler
+    
 skip:
+    # Restore context
     lw ra, 0(sp)
     lw t0, 4(sp)
     lw t1, 8(sp)
     addi sp, sp, 64
+    
+    # Return from trap
     mret
 ```
-startup13.s
-asm
-Copy
-Edit
+
+#### startup13.s
+```assembly
 .section .text.start
 .global _start
-_start:
-    la sp, _stack_top
 
-    # Wait for UART to be ready
-    li t0, 0x10000005       # UART_READY
-    li t1, 0x20             # TX ready bit
+_start:
+    # Initialize stack pointer
+    la sp, _stack_top
+    
+    # Wait for UART ready
+    li t0, 0x10000005
+    li t1, 0x20
 wait_uart:
     lb t2, 0(t0)
     and t2, t2, t1
     beq t2, zero, wait_uart
-
-    # Send initial 'S' character
-    li t0, 0x10000000       # UART_TX
+    
+    # Send startup character
+    li t0, 0x10000000
     li t1, 'S'
     sb t1, 0(t0)
-
-    # Set trap vector and jump to main
+    
+    # Set trap vector
     la t0, trap_handler
     csrw mtvec, t0
+    
+    # Jump to main
     jal main
-1:  j 1b
+    
+    # Infinite loop if main returns
+    j .
 
 .section .bss
 .align 4
 .space 1024
 _stack_top:
-linker13.ld
-ld
-Copy
-Edit
+```
+
+#### linker13.ld
+```ld
 OUTPUT_ARCH(riscv)
 ENTRY(_start)
-MEMORY
-{
-  FLASH (rx) : ORIGIN = 0x80000000, LENGTH = 16M
-  RAM   (rw) : ORIGIN = 0x81000000, LENGTH = 16M
-}
-SECTIONS
-{
-  .text : { *(.text.start) *(.text) *(.rodata) } > FLASH
-  .data : { *(.data) } > RAM AT > FLASH
-  .bss  : { *(.bss) } > RAM
-  _end = .;
-}
-🔧 Build & Run Commands:
-bash
-Copy
-Edit
-riscv32-unknown-elf-gcc -g -O0 \
-  -march=rv32im -mabi=ilp32 \
-  -nostdlib -T linker13.ld \
-  pulse_interrupt.c trap_handler.s startup13.s \
-  -o timer.elf
 
-qemu-system-riscv32 -nographic -machine virt -bios none \
-  -kernel timer.elf
-🖼️ Output
-nginx
-Copy
-Edit
+MEMORY {
+    FLASH (rx) : ORIGIN = 0x80000000, LENGTH = 16M
+    RAM   (rw) : ORIGIN = 0x81000000, LENGTH = 16M
+}
+
+SECTIONS {
+    .text : {
+        *(.text.start)
+        *(.text*)
+    } > FLASH
+    
+    .rodata : ALIGN(4) {
+        *(.rodata*)
+    } > FLASH
+    
+    .data : ALIGN(4) {
+        *(.data*)
+    } > RAM AT > FLASH
+    
+    .bss : ALIGN(4) {
+        *(.bss*)
+    } > RAM
+    
+    _end = .;
+}
+```
+
+### 🔨 Build Commands
+```bash
+cd ~/Desktop/vsdflow/task13
+
+# Compile and link
+riscv32-unknown-elf-gcc -g -O0 -march=rv32im -mabi=ilp32 -nostdlib \
+  -T linker13.ld \
+  -o timer.elf \
+  timer_interrupt.c startup13.s trap_handler.s
+
+# Run in QEMU
+qemu-system-riscv32 -nographic -machine virt -bios none -kernel timer.elf
+```
+
+### 📋 Expected Output
+```
 SATimer enabled
 ........MTIP
 MTIP
 MTIP
 MTIP
-📋 Explanation & Issues
-⭐ Used mie and mstatus CSR writes to enable MTIP.
+```
 
-✅ Interrupts triggered every approx 1,000,000 cycles.
+### 📘 Explanation
+This task demonstrates:
+- Setting up machine timer interrupts (MTIP)
+- Writing interrupt handlers in assembly
+- Context saving/restoration in trap handlers
+- CSR manipulation for interrupt control
+- Memory-mapped UART communication
 
-🛠️ Fixes:
+---
 
-Initial missing CSR writes prevented MTIP.
+## Task 14: RV32IMAC vs RV32IMC ("A" Extension)
 
-Interrupt handler adjusted stack correctly and returned using mret.
+### 🎯 Objective
+Compare RV32IMC vs RV32IMAC instruction sets, focusing on atomic instruction capabilities.
 
-Status: Completed.
+### 📊 Feature Comparison
 
-📸 Screenshot Placeholder: Output showing periodic “MTIP” prints.
+| Feature | RV32IMC | RV32IMAC | Description |
+|---------|---------|----------|-------------|
+| I (Base Integer) | ✅ | ✅ | Basic integer operations |
+| M (Multiply/Divide) | ✅ | ✅ | Hardware multiply/divide |
+| C (Compressed) | ✅ | ✅ | 16-bit compressed instructions |
+| A (Atomic) | ❌ | ✅ | Atomic memory operations |
 
-Task 14: RV32IMAC vs RV32IMC Comparison
-🎯 Objective
-Explain differences between RV32IMC and RV32IMAC, focusing on the atomic (A) extension.
+### 🔸 Atomic Instruction Set
 
-📊 Comparison Table
-Feature	RV32IMC (Base)	RV32IMAC (with A)
-Integer (I)	✅	✅
-Multiply/Divide (M)	✅	✅
-Compressed (C)	✅	✅
-Atomic (A)	❌	✅
+| Instruction | Meaning | Use Case |
+|-------------|---------|----------|
+| `lr.w` | Load-Reserved | Begin read-modify-write atomic operation |
+| `sc.w` | Store-Conditional | Complete atomic store if reservation valid |
+| `amoadd.w` | Atomic Add | Atomic increment of memory location |
+| `amoswap.w` | Atomic Swap | Exchange value atomically |
+| `amoor.w` | Atomic OR | Set flags atomically |
+| `amoand.w` | Atomic AND | Clear flags atomically |
+| `amomin.w` | Atomic Min | Resource arbitration |
+| `amomax.w` | Atomic Max | Tracking maximum values safely |
 
-🧍 Why “A” Matters
-Adds atomic instructions: lr.w, sc.w, amoadd.w, amoswap.w, amoand.w, amoor.w, amomin.w, amomax.w.
+### 📘 Explanation
+The "A" extension provides:
+- **Lock-free programming**: Enable efficient concurrent algorithms
+- **Synchronization primitives**: Build mutexes, semaphores, barriers
+- **Atomic updates**: Safe counter increments, flag operations
+- **Memory ordering**: Acquire/release semantics for multi-core systems
 
-Enables safe lock-free and multi-core synchronization.
+---
 
-📸 Screenshot Placeholder: Slide or diagram comparing ISA variants.
+## Task 15: Atomic Test Program (lr.w/sc.w Mutex)
 
-Task 15: Atomic Operations Test
-🎯 Objective
-Implement a mutex using lr.w/sc.w to safely increment a shared counter from two “threads” in bare-metal C.
+### 🎯 Objective
+Implement a spin-lock mutex using `lr.w`/`sc.w` atomic instructions to simulate thread synchronization.
 
-📁 task15.c
-(Uses memory mapped UART and atomic instructions)
+### 📁 File Structure
+```
+~/Desktop/vsdflow/task15/
+├── task15.c
+├── startup15.s
+├── linker15.ld
+└── task15.elf
+```
 
-c
-Copy
-Edit
+### 💻 Code Files
+
+#### task15.c
+```c
+#include <stdint.h>
+
 #define UART_TX 0x10000000
 #define UART_READY 0x10000005
 
-typedef unsigned int uint32_t;
-volatile uint32_t shared_counter = 0;
-volatile uint32_t mutex = 0;
+// Global variables
+volatile uint32_t mutex = 0;     // 0 = unlocked, 1 = locked
+volatile uint32_t counter = 0;
+volatile uint32_t thread_id = 1;
 
-void uart_putc(char c) { /* ... */ }
-void uart_puts(const char* s) { /* ... */ }
-int mutex_lock(volatile uint32_t* m) { /* lr.w/sc.w loop */ }
-void mutex_unlock(volatile uint32_t* m) { *m = 0; }
+void uart_putc(char c) {
+    volatile char* tx = (volatile char*)UART_TX;
+    volatile char* rd = (volatile char*)UART_READY;
+    while (!(*rd & (1 << 5)));
+    *tx = c;
+}
 
-void thread1(void) { /* lock, increment, UART print */ }
-void thread2(void) { /* same */ }
+void uart_puts(const char* s) {
+    while (*s) uart_putc(*s++);
+}
+
+// Atomic mutex lock using lr.w/sc.w
+int mutex_lock(volatile uint32_t* lock) {
+    uint32_t result;
+    do {
+        asm volatile (
+            "lr.w %0, (%1)\n"      // Load-reserved from lock address
+            "bnez %0, 1f\n"        // If already locked, retry
+            "li %0, 1\n"           // Set lock value to 1
+            "sc.w %0, %0, (%1)\n"  // Store-conditional
+            "1:"
+            : "=&r" (result)
+            : "r" (lock)
+            : "memory"
+        );
+    } while (result != 0);  // Retry if sc.w failed
+    return 0;
+}
+
+// Atomic mutex unlock
+void mutex_unlock(volatile uint32_t* lock) {
+    asm volatile (
+        "amoswap.w zero, zero, (%0)"
+        :
+        : "r" (lock)
+        : "memory"
+    );
+}
+
+void thread_function(uint32_t id) {
+    char msg[32];
+    
+    // Simple sprintf equivalent
+    msg[0] = 'T';
+    msg[1] = '0' + id;
+    msg[2] = ':';
+    msg[3] = ' ';
+    msg[4] = '\0';
+    
+    for (int i = 0; i < 5; i++) {
+        mutex_lock(&mutex);
+        
+        // Critical section
+        uart_puts(msg);
+        uart_puts("Enter critical section\n");
+        
+        counter++;
+        
+        uart_puts(msg);
+        uart_puts("Counter = ");
+        uart_putc('0' + counter);
+        uart_putc('\n');
+        
+        // Simulate work
+        for (volatile int j = 0; j < 10000; j++);
+        
+        uart_puts(msg);
+        uart_puts("Exit critical section\n");
+        
+        mutex_unlock(&mutex);
+        
+        // Non-critical section
+        for (volatile int j = 0; j < 50000; j++);
+    }
+}
 
 int main() {
-  uart_puts("Starting threads\n");
-  thread1(); thread2(); thread1(); thread2();
-  uart_puts("Done\n");
-  while(1) uart_putc('.'); // spinning
+    uart_putc('S');
+    uart_putc('A');
+    uart_puts("Starting threads\n");
+    
+    // Simulate two threads
+    thread_function(1);
+    thread_function(2);
+    
+    uart_puts("Done\n");
+    
+    while (1) {
+        uart_putc('.');
+        for (volatile int i = 0; i < 100000; i++);
+    }
+    
+    return 0;
 }
-🔗 linker15.ld
-ld
-Copy
-Edit
+```
+
+#### startup15.s
+```assembly
+.section .text.start
+.global _start
+
+_start:
+    # Initialize stack
+    la sp, _stack_top
+    
+    # Wait for UART ready
+    li t0, 0x10000005
+    li t1, 0x20
+wait_uart:
+    lb t2, 0(t0)
+    and t2, t2, t1
+    beq t2, zero, wait_uart
+    
+    # Jump to main
+    jal main
+    
+    # Infinite loop if main returns
+    j .
+
+.section .bss
+.align 4
+.space 2048
+_stack_top:
+```
+
+#### linker15.ld
+```ld
 OUTPUT_ARCH(riscv)
 ENTRY(_start)
-MEMORY {
-  FLASH (rx) : ORIGIN = 0x80000000, LENGTH = 16M
-  RAM   (rw) : ORIGIN = 0x81000000, LENGTH = 16M
-}
-SECTIONS {
-  .text : { *(.text.start) *(.text) } > FLASH
-  .rodata { *(.rodata) } > FLASH
-  .data { *(.data) } > RAM AT > FLASH
-  .bss  { *(.bss) } > RAM
-  _end = .;
-}
-🔧 Build & Run:
-bash
-Copy
-Edit
-riscv32-unknown-elf-gcc -g -O0 -march=rv32imac -mabi=ilp32 \
-  -nostdlib -T linker15.ld \
-  task15.c Startup15.s \
-  -o task15.elf
 
-qemu-system-riscv32 -nographic -machine virt -bios none \
-  -kernel task15.elf
-🖼️ Output
-vbnet
-Copy
-Edit
-Starting threads
+MEMORY {
+    FLASH (rx) : ORIGIN = 0x80000000, LENGTH = 16M
+    RAM   (rw) : ORIGIN = 0x81000000, LENGTH = 16M
+}
+
+SECTIONS {
+    .text : {
+        *(.text.start)
+        *(.text*)
+    } > FLASH
+    
+    .rodata : ALIGN(4) {
+        *(.rodata*)
+    } > FLASH
+    
+    .data : ALIGN(4) {
+        *(.data*)
+    } > RAM AT > FLASH
+    
+    .bss : ALIGN(4) {
+        *(.bss*)
+    } > RAM
+    
+    _end = .;
+}
+```
+
+### 🔨 Build Commands
+```bash
+cd ~/Desktop/vsdflow/task15
+
+# Compile with atomic extension
+riscv32-unknown-elf-gcc -g -O0 -march=rv32imac -mabi=ilp32 -nostdlib \
+  -T linker15.ld \
+  -o task15.elf \
+  task15.c startup15.s
+
+# Run in QEMU
+qemu-system-riscv32 -nographic -machine virt -bios none -kernel task15.elf
+```
+
+### 📋 Expected Output
+```
+SAStarting threads
 T1: Enter critical section
 T1: Counter = 1
 T1: Exit critical section
 T2: Enter critical section
 T2: Counter = 2
+T2: Exit critical section
 ...
 Done
 ........
-✅ Status: Completed mutex test with safe increments
+```
 
-📸 Screenshot Placeholder: UART output showing thread interleaving.
+### 📘 Explanation
+This task demonstrates:
+- **Atomic operations**: Using `lr.w`/`sc.w` for lock-free synchronization
+- **Mutex implementation**: Spin-lock using atomic instructions
+- **Critical sections**: Protecting shared resources (counter)
+- **Thread simulation**: Sequential execution simulating concurrent access
 
-Task 16: Newlib printf() on Bare‑Metal
-🎯 Objective
-Use Newlib's printf() on bare-metal by implementing low-level syscalls (_write, _sbrk, etc.) redirecting output to UART.
+---
 
-📁 task16.c
-(Contains UART helper, syscall stubs, main with printf)
+## Task 16: Newlib printf on Bare-Metal
 
-linker16.ld & startup16.s
-(Similar to Task 15 & 17—the FLASH/RAM layout)
+### 🎯 Objective
+Retarget Newlib's `printf()` function to work with memory-mapped UART in a bare-metal RISC-V environment.
 
-🔧 Build & Run:
-bash
-Copy
-Edit
-riscv32-unknown-elf-gcc -march=rv32imc -mabi=ilp32 -c startup16.s task16.c
+### 📁 File Structure
+```
+~/Desktop/vsdflow/task16/
+├── task16.c
+├── startup16.s
+├── linker16.ld
+└── task16.elf
+```
+
+### 💻 Code Files
+
+#### task16.c
+```c
+#include <stdio.h>
+#include <errno.h>
+#include <sys/stat.h>
+
+#define UART_TX 0x10000000
+#define UART_READY 0x10000005
+
+// Heap management
+extern char _end;
+static char* heap_ptr = &_end;
+static char* heap_limit = (char*)0x82000000;  // 16MB limit
+
+// UART functions
+void uart_putc(char c) {
+    volatile char* tx = (volatile char*)UART_TX;
+    volatile char* rd = (volatile char*)UART_READY;
+    while (!(*rd & (1 << 5)));
+    *tx = c;
+}
+
+// Newlib system call stubs
+int _write(int file, char* ptr, int len) {
+    if (file == 1 || file == 2) {  // stdout or stderr
+        for (int i = 0; i < len; i++) {
+            uart_putc(ptr[i]);
+        }
+        return len;
+    }
+    errno = EBADF;
+    return -1;
+}
+
+int _read(int file, char* ptr, int len) {
+    (void)file;
+    (void)ptr;
+    (void)len;
+    errno = ENOSYS;
+    return -1;
+}
+
+int _close(int file) {
+    (void)file;
+    return -1;
+}
+
+int _lseek(int file, int offset, int whence) {
+    (void)file;
+    (void)offset;
+    (void)whence;
+    return -1;
+}
+
+int _fstat(int file, struct stat* st) {
+    if (file >= 0 && file <= 2) {  // stdin, stdout, stderr
+        st->st_mode = S_IFCHR;
+        return 0;
+    }
+    errno = EBADF;
+    return -1;
+}
+
+int _isatty(int file) {
+    if (file >= 0 && file <= 2) {
+        return 1;  // stdin, stdout, stderr are TTY
+    }
+    return 0;
+}
+
+void* _sbrk(int incr) {
+    char* prev_heap = heap_ptr;
+    
+    if (heap_ptr + incr > heap_limit) {
+        errno = ENOMEM;
+        return (void*)-1;
+    }
+    
+    heap_ptr += incr;
+    return prev_heap;
+}
+
+void _exit(int status) {
+    (void)status;
+    while (1) {
+        // Infinite loop
+    }
+}
+
+int _kill(int pid, int sig) {
+    (void)pid;
+    (void)sig;
+    errno = ENOSYS;
+    return -1;
+}
+
+int _getpid(void) {
+    return 1;
+}
+
+// Application code
+int main() {
+    uart_putc('S');
+    uart_putc('A');
+    
+    // Test printf functionality
+    printf("Hello, RISC-V! Counter: %d\n", 42);
+    printf("Hex value: 0x%08X\n", 0xDEADBEEF);
+    printf("Float test: %.2f\n", 3.14159);
+    
+    int counter = 0;
+    while (1) {
+        printf("Loop iteration: %d\n", counter++);
+        
+        // Delay
+        for (volatile int i = 0; i < 500000; i++);
+        
+        if (counter >= 5) break;
+    }
+    
+    printf("Program completed successfully!\n");
+    
+    while (1) {
+        uart_putc('.');
+        for (volatile int i = 0; i < 100000; i++);
+    }
+    
+    return 0;
+}
+```
+
+#### startup16.s
+```assembly
+.section .text.start
+.global _start
+
+_start:
+    # Initialize stack
+    la sp, _stack_top
+    
+    # Clear BSS section
+    la t0, _bss_start
+    la t1, _bss_end
+clear_bss:
+    beq t0, t1, bss_done
+    sw zero, 0(t0)
+    addi t0, t0, 4
+    j clear_bss
+bss_done:
+    
+    # Wait for UART ready
+    li t0, 0x10000005
+    li t1, 0x20
+wait_uart:
+    lb t2, 0(t0)
+    and t2, t2, t1
+    beq t2, zero, wait_uart
+    
+    # Jump to main
+    jal main
+    
+    # Infinite loop if main returns
+    j .
+
+.section .bss
+.align 4
+.space 4096
+_stack_top:
+```
+
+#### linker16.ld
+```ld
+OUTPUT_ARCH(riscv)
+ENTRY(_start)
+
+MEMORY {
+    FLASH (rx) : ORIGIN = 0x80000000, LENGTH = 16M
+    RAM   (rw) : ORIGIN = 0x81000000, LENGTH = 16M
+}
+
+SECTIONS {
+    .text : {
+        *(.text.start)
+        *(.text*)
+    } > FLASH
+    
+    .rodata : ALIGN(4) {
+        *(.rodata*)
+    } > FLASH
+    
+    .data : ALIGN(4) {
+        _data_start = .;
+        *(.data*)
+        _data_end = .;
+    } > RAM AT > FLASH
+    
+    .bss : ALIGN(4) {
+        _bss_start = .;
+        *(.bss*)
+        *(.sbss*)
+        _bss_end = .;
+    } > RAM
+    
+    _end = .;
+}
+```
+
+### 🔨 Build Commands
+```bash
+cd ~/Desktop/vsdflow/task16
+
+# Compile separately
 riscv32-unknown-elf-gcc -march=rv32imc -mabi=ilp32 \
-  -nostartfiles -T linker16.ld startup16.o task16.o \
-  -lc -lgcc -o task16.elf
+  -c startup16.s task16.c
 
-qemu-system-riscv32 -nographic -machine virt -bios none \
-  -kernel task16.elf
-🖼️ Output
-yaml
-Copy
-Edit
-SAHello, RISC‑V! Counter: 42
+# Link with newlib
+riscv32-unknown-elf-gcc -march=rv32imc -mabi=ilp32 -nostartfiles \
+  -T linker16.ld \
+  -o task16.elf startup16.o task16.o
+
+# Run in QEMU
+qemu-system-riscv32 -nographic -machine virt -bios none -kernel task16.elf
+```
+
+### 📋 Expected Output
+```
+SAHello, RISC-V! Counter: 42
+Hex value: 0xDEADBEEF
+Float test: 3.14
+Loop iteration: 0
+Loop iteration: 1
+...
+Program completed successfully!
 ........
-✅ Issues resolved:
+```
 
-Needed _fstat, _isatty stubs for printf to work.
+### 📘 Explanation
+This task demonstrates:
+- **Newlib integration**: Retargeting standard C library for bare-metal
+- **System call implementation**: `_write`, `_sbrk`, `_fstat`, etc.
+- **Printf functionality**: Full formatted output support
+- **Heap management**: Dynamic memory allocation support
+- **BSS initialization**: Proper C runtime setup
 
-_sbrk bound-checked to prevent heap overflow.
+---
 
-📸 Screenshot Placeholder: Terminal showi ng printf output and blinking delays.
+# TASK 17 — Endianness & Struct Packing Check
 
-Task 17: Endianness & Struct Packing
-🎯 Objective
-Use a union-based C test to confirm that RISC-V is little-endian.
+## ✅ Objective
+Verify RV32 endianness with union trick and print byte order via UART on bare-metal RISC-V system.
 
-📁 task17.c
-(Prints test value and individual bytes over UART)
+## 🛠️ Project Structure
+```
+task17/
+├── task17.c          # Main application with endianness detection
+├── startup17.s       # Assembly startup code
+├── linker17.ld       # Linker script for memory layout
+└── task17.elf        # Final executable
+```
 
-linker17.ld & startup17.s
-(Custom FLASH/RAM layout and basic start sequence)
+## 🔧 Build Process
 
-🔧 Build & Run:
-bash
-Copy
-Edit
-riscv32-unknown-elf-gcc -c task17.c startup17.s \
-  -march=rv32imac -mabi=ilp32 -Os
+### Prerequisites
+- RISC-V GCC toolchain (`riscv32-unknown-elf-gcc`)
+- QEMU RISC-V emulator (`qemu-system-riscv32`)
 
-riscv32-unknown-elf-gcc task17.o startup17.o \
-  -march=rv32imac -mabi=ilp32 \
-  -nostdlib -T linker17.ld -lc -lgcc \
-  -o task17.elf
+### Compilation Commands
+```bash
+# Compile C source
+riscv32-unknown-elf-gcc -c task17.c -march=rv32imac -mabi=ilp32 -Os
 
-qemu-system-riscv32 -M virt -bios none -kernel task17.elf -nographic
-🖼️ Output
-yaml
-Copy
-Edit
+# Compile assembly startup
+riscv32-unknown-elf-gcc -c startup17.s -march=rv32imac -mabi=ilp32
+
+# Link final executable
+riscv32-unknown-elf-gcc startup17.o task17.o -march=rv32imac -mabi=ilp32 \
+    -nostartfiles -T linker17.ld -o task17.elf
+```
+
+### Run in QEMU
+```bash
+qemu-system-riscv32 -nographic -machine virt -bios none -kernel task17.elf
+```
+
+## 💬 Expected Output
+```
 Bare‑metal RISC‑V Application
 Value of x: 43
 Verifying Byte Ordering (Endianness):
@@ -1032,14 +1481,49 @@ Byte 0: 0x04
 Byte 1: 0x03
 Byte 2: 0x02
 Byte 3: 0x01
-
 This system is Little‑Endian.
-...
-✅ Fixes:
+```
 
-Added newline printing for readability.
+## 🔍 Technical Details
 
-volatile to prevent compiler optimizations disrupting union test.
+### Endianness Detection Method
+- Uses a `union` containing both a 32-bit integer and a 4-byte array
+- Stores the value `0x01020304` as an integer
+- Reads back individual bytes to determine storage order
+- Little-endian: least significant byte stored first (0x04, 0x03, 0x02, 0x01)
+- Big-endian: most significant byte stored first (0x01, 0x02, 0x03, 0x04)
 
-📸 Screenshot Placeholder: Terminal logs confirming endianness.
+### Architecture Configuration
+- **ISA**: RV32IMAC (32-bit base + Integer Multiply/Divide + Atomic + Compressed)
+- **ABI**: ilp32 (Integer-Long-Pointer 32-bit)
+- **Target**: Bare-metal (no OS, direct hardware access)
 
+## 🐞 Issues Faced & Solutions
+
+### Problem: Output Formatting
+- **Issue**: Output appeared on single line without proper formatting
+- **Solution**: Added explicit `\n` newline characters for readability
+
+### Problem: Compiler Optimization
+- **Issue**: Union might be optimized away, preventing endianness test
+- **Solution**: Used `volatile` keyword to ensure memory access occurs as written
+
+### Problem: UART Output
+- **Issue**: Required proper UART initialization for console output
+- **Solution**: Implemented memory-mapped UART writes to QEMU's virtual UART
+
+## 📋 Key Learning Points
+1. **Endianness Verification**: RISC-V uses little-endian byte ordering by default
+2. **Union Usage**: Effective technique for low-level memory layout inspection
+3. **Bare-Metal I/O**: Direct memory-mapped peripheral access without OS abstraction
+4. **Compiler Considerations**: Volatile keywords necessary to prevent optimization interference
+
+## 🎯 Success Criteria
+- ✅ Successfully compiles with RV32IMAC ISA
+- ✅ Runs on QEMU RISC-V virtual machine
+- ✅ Correctly identifies little-endian byte ordering
+- ✅ Outputs formatted results via UART console
+- ✅ Demonstrates union-based memory inspection technique
+
+---
+*Task completed successfully - RISC-V endianness verification working as expected*
