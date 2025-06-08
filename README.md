@@ -1,4 +1,4 @@
-![image](https://github.com/user-attachments/assets/a4a29d4e-c55d-49d4-b78a-a752bf1b8472)![image](https://github.com/user-attachments/assets/08786ff0-2a5e-49a0-bfbe-3595e8deaa89)# RISC-V Toolchain Tasks - Amritha S - Week 1
+# RISC-V Toolchain Tasks - Amritha S - Week 1
 
 
 
