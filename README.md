@@ -58,6 +58,7 @@ ls -lh hello.o
 ```bash
 -rw-r--r-- 1 amritha-s amritha-s 1.2K ... hello.o
 ```
+### Screenshot 
 ![image](https://github.com/user-attachments/assets/3dcee291-f9e9-4493-9350-c8e908410656)
 
 ### 📋 Task Checklist
@@ -114,6 +115,7 @@ ls -lh hello.elf
 ```bash
 -rwxr-xr-x 1 amritha-s amritha-s 7.5K ... hello.elf
 ```
+### Screenshot
 ![image](https://github.com/user-attachments/assets/af39c9da-4a96-4403-bc80-46136fe9ab16)
 ![image](https://github.com/user-attachments/assets/b71a577c-bd4f-4cba-963d-2aa157d94936)
 ![image](https://github.com/user-attachments/assets/e5ae8391-2e7e-4cd0-a475-78df5161ac00)
@@ -128,8 +130,7 @@ ls -lh hello.elf
 | 2.4 | Confirm ELF file is created via ls -lh hello.elf | ✅ |
 | 2.5 | Capture screenshot of ELF generation in terminal | 🔲 |
 
-### 🖼️ Output Screenshot
-📸 Paste your terminal screenshot here showing the ELF file (hello.elf) successfully created.
+
 
 ### 📘 Explanation
 Linking is the second key step in the embedded toolchain pipeline:
