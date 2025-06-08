@@ -1,4 +1,4 @@
-# RISC-V Toolchain Tasks - Amritha S - Week 1
+![image](https://github.com/user-attachments/assets/a4a29d4e-c55d-49d4-b78a-a752bf1b8472)![image](https://github.com/user-attachments/assets/08786ff0-2a5e-49a0-bfbe-3595e8deaa89)# RISC-V Toolchain Tasks - Amritha S - Week 1
 
 
 
@@ -58,6 +58,7 @@ ls -lh hello.o
 ```bash
 -rw-r--r-- 1 amritha-s amritha-s 1.2K ... hello.o
 ```
+![image](https://github.com/user-attachments/assets/3dcee291-f9e9-4493-9350-c8e908410656)
 
 ### 📋 Task Checklist
 | Task # | Description | Done? |
@@ -113,6 +114,10 @@ ls -lh hello.elf
 ```bash
 -rwxr-xr-x 1 amritha-s amritha-s 7.5K ... hello.elf
 ```
+![image](https://github.com/user-attachments/assets/af39c9da-4a96-4403-bc80-46136fe9ab16)
+![image](https://github.com/user-attachments/assets/b71a577c-bd4f-4cba-963d-2aa157d94936)
+![image](https://github.com/user-attachments/assets/e5ae8391-2e7e-4cd0-a475-78df5161ac00)
+
 
 ### 📋 Task Checklist
 | Task # | Description | Done? |
@@ -181,7 +186,8 @@ cd ~/Desktop/vsdflow/task3
 | 3.4 | Take a screenshot of the disassembled output in terminal | 🔲 |
 
 ### 🖼️ Output Screenshot
-📸 Paste screenshot showing assembly output — particularly the disassembly of main function.
+![image](https://github.com/user-attachments/assets/3dfb9a0c-2cfc-4124-a621-027dfce0abf3)
+![image](https://github.com/user-attachments/assets/ac0793a8-2c29-4776-80fe-fad648dda65b)
 
 ### Expected Disassembly Example
 ```asm
@@ -200,7 +206,68 @@ This task validates:
 This is crucial for debugging low-level behavior and ensuring what your source code compiles into at the ISA level.
 
 ---
+# 🧠 Task 4: Compile and Run Custom C Code on RISC-V
 
+## ❓ Objective
+Write a simple C program (`hello.c`) and compile it using the RISC-V toolchain. Run the resulting binary using QEMU.
+
+## 📁 Project Structure
+```
+task4/
+├── README.md
+└── hello.c
+```
+
+## 📄 Source Code
+
+**File:** `hello.c`
+```c
+int main() {
+    while (1);
+    return 0;
+}
+```
+
+## 🧱 Compilation
+
+Compile the C program using the RISC-V GCC toolchain:
+
+```bash
+/home/amritha-s/vsdflow/riscv/opt/riscv/bin/riscv32-unknown-elf-gcc \
+  -o hello.elf hello.c
+```
+
+## ▶️ Screenshot:
+
+![image](https://github.com/user-attachments/assets/b353269b-0dfb-4e74-9f6f-5746e8079300)
+![image](https://github.com/user-attachments/assets/a9cfa8a6-b259-46a3-aad6-8c3bbb0b53d6)
+
+
+
+## 📌 Notes
+
+- This uses a bare minimum infinite loop program
+- Since there's no output or UART involved, nothing prints to the terminal
+- Used QEMU's user-mode emulator (`qemu-riscv32`) to validate ELF format
+- The program demonstrates successful cross-compilation for RISC-V architecture
+
+## ✅ Status
+**Completed** - Successfully compiled C code for RISC-V and executed using QEMU emulation.
+
+---
+
+### 🔧 Requirements
+- RISC-V GCC toolchain
+- QEMU with RISC-V support (`qemu-riscv32`)
+
+### 🎯 Learning Outcomes
+- Cross-compilation for RISC-V architecture
+- Understanding ELF binary format
+- QEMU user-mode emulation basics
+
+
+
+  
 ## Task 5: Compile Assembly Code
 
 ### 🎯 Objective
@@ -249,10 +316,8 @@ EOF
 | 5.5 | Screenshot of assembly + ELF disassembly | 🔲 |
 
 ### 🖼️ Output Screenshot
-📸 Take a screenshot showing successful assembly, linking, and output from:
-```bash
-riscv32-unknown-elf-objdump -d start.elf
-```
+![image](https://github.com/user-attachments/assets/4a6d8054-7684-41ea-ba9c-e623eb2ec5e7)
+
 
 ### 📘 Explanation
 This task proves:
@@ -317,7 +382,9 @@ EOF
 | 6.6 | Screenshot with function call disassembly | 🔲 |
 
 ### 🖼️ Output Screenshot
-Show a disassembly with the call my_function inside _start, plus the function itself.
+![image](https://github.com/user-attachments/assets/637eaef2-13cd-4286-a28a-0da038b5bb80)
+![image](https://github.com/user-attachments/assets/fba3523e-bc19-4737-a849-95d83b95668a)
+
 
 ### 📘 Explanation
 You've built an ELF where:
@@ -372,7 +439,8 @@ cp ~/Desktop/vsdflow/task6/* .
 | 7.4 | Screenshot of nm output | 🔲 |
 
 ### 🖼️ Output Screenshot
-Take screenshot of nm start.elf output showing symbols:
+![image](https://github.com/user-attachments/assets/f8278ea2-af4d-45df-83c2-14adce8b9ae8)
+
 ```
 00000000 T _start
 00000014 T my_function
@@ -446,7 +514,7 @@ This builds the same file with four optimization levels:
 | -O3 | Max speed | May be same | Fastest |
 
 ### 🖼️ Output Screenshot
-📸 Screenshot of terminal running ./build_all_opts.sh and showing sizes
+![image](https://github.com/user-attachments/assets/9b9e249c-04eb-47d8-b899-ef77d50d8aa6)
 
 ---
 
@@ -472,7 +540,8 @@ Then inspect each `disasm_Ox.txt` to compare loop code and check if:
 Using objdump -d, you decode machine code into human-readable assembly to understand compiler behavior.
 
 ### 🖼️ Output Screenshot
-📸 Screenshot of one of the disassembled .txt files or diff comparison
+![image](https://github.com/user-attachments/assets/d6474602-701c-439d-9df1-860ef3fb5183)
+![image](https://github.com/user-attachments/assets/5f01ab15-73f1-4ab3-a46e-dcfe4e4e8bca)
 
 ---
 
@@ -495,7 +564,8 @@ Use -g flag to include debug info and explore .symtab.
 With -g, symbols like main, delay_loop remain visible. Use nm to confirm variable locations, function scope, and linkage.
 
 ### 🖼️ Output Screenshot
-📸 Screenshot of output from nm debug.elf
+![image](https://github.com/user-attachments/assets/c702600e-1e61-4252-a2de-cc148e1c28ff)
+
 
 ---
 
@@ -593,7 +663,9 @@ _start:
 - ELF confirms correct memory placement
 
 ### 🖼️ Output Screenshot
-📸 Screenshot of objdump -h and nm outputs
+![image](https://github.com/user-attachments/assets/4adce780-0e86-4e28-83ed-6096f5259183)
+![image](https://github.com/user-attachments/assets/5e0d97eb-a246-4295-b63f-7a2779bbe4e5)
+![image](https://github.com/user-attachments/assets/31d9cdca-4be4-49a0-91e6-9b3d169d2d45)
 
 ---
 
@@ -701,10 +773,11 @@ chmod +x build_led_blink.sh
 - Objdump output confirms working ELF
 
 ### 🖼️ Output Screenshot
-📸 Screenshot of blinking logic disassembly or ELF sections
+![image](https://github.com/user-attachments/assets/6c6835ed-c6b9-457d-be69-19a1c18cfbb1)
+![image](https://github.com/user-attachments/assets/86dfeca6-f138-44c4-9a54-208aa6be0663)
 
 ---
-# RISC-V Tasks 13-17: Advanced Topics
+
 
 ## Task 13: Interrupt Primer (MTIP Handler)
 
