@@ -80,66 +80,131 @@ In embedded systems and compiler verification, it's important to start small and
 
 ---
 
-## Task 2: Build Full RISC-V Executable
+# Task 3: RISC-V ELF Binary Analysis
 
-### 🎯 Objective
-Take the compiled object file from hello.c and link it into an actual RISC-V executable (hello.elf) using riscv32-unknown-elf-gcc. This tests the ability of the toolchain to link and generate a complete ELF binary.
+### ⚙️ Task 3: Analyze RISC-V ELF Structure
 
-### 📁 File Structure
-```bash
-~/Desktop/vsdflow/task2/
-├── hello.c
+**🎯 Objective**  
+Analyze the generated `main.elf` binary from Task 2 using RISC-V toolchain utilities to examine its structure, sections, symbols, and disassembly.
+
+**📁 Folder Structure**
+```
+~/Desktop/vsdflow/task3/
+├── main.elf (copied from task2)
+└── analysis_output.txt (generated)
 ```
 
-### Prerequisites
-If hello.c doesn't exist, copy it from Task 1:
+**🧰 Prerequisites**
+- Completed Task 2 with `main.elf` binary
+- RISC-V toolchain installed and accessible
+- Copy `main.elf` from task2 directory to task3 directory
+
+**💻 Commands Used**
+
 ```bash
-cp ~/Desktop/vsdflow/task1/hello.c ~/Desktop/vsdflow/task2/
+cd ~/Desktop/vsdflow/task3
+
+# Copy ELF from previous task
+cp ../task2/main.elf .
+
+# Step 1: Display ELF header information
+/home/amritha-s/vsdflow/riscv/opt/riscv/bin/riscv32-unknown-elf-readelf -h main.elf
+
+# Step 2: Show section headers
+/home/amritha-s/vsdflow/riscv/opt/riscv/bin/riscv32-unknown-elf-readelf -S main.elf
+
+# Step 3: Display program headers
+/home/amritha-s/vsdflow/riscv/opt/riscv/bin/riscv32-unknown-elf-readelf -l main.elf
+
+# Step 4: Show symbol table
+/home/amritha-s/vsdflow/riscv/opt/riscv/bin/riscv32-unknown-elf-nm main.elf
+
+# Step 5: Disassemble the binary
+/home/amritha-s/vsdflow/riscv/opt/riscv/bin/riscv32-unknown-elf-objdump -d main.elf
+
+# Step 6: Show file size and format
+file main.elf
+size main.elf
 ```
 
-### 💻 Working Commands
-```bash
-cd ~/Desktop/vsdflow/task2
+**✅ Expected Output Analysis**
 
-# Step 1: Compile C code into object file
-/home/amritha-s/vsdflow/riscv/opt/riscv/bin/riscv32-unknown-elf-gcc -c hello.c -o hello.o
-
-# Step 2: Link object file into full ELF executable
-/home/amritha-s/vsdflow/riscv/opt/riscv/bin/riscv32-unknown-elf-gcc hello.o -o hello.elf
-
-# Step 3: Check that ELF file is created
-ls -lh hello.elf
+**ELF Header:**
+```
+ELF Header:
+  Magic:   7f 45 4c 46 01 01 01 00 00 00 00 00 00 00 00 00 
+  Class:                             ELF32
+  Data:                              2's complement, little endian
+  Machine:                           RISC-V
+  Entry point address:               0x10054
 ```
 
-### Expected Output
-```bash
--rwxr-xr-x 1 amritha-s amritha-s 7.5K ... hello.elf
+**Key Sections:**
 ```
+Section Headers:
+  [Nr] Name              Type            Addr     Off    Size   ES Flg Lk Inf Al
+  [ 1] .text             PROGBITS        00010054 000054 000018 00  AX  0   0  2
+  [ 2] .data             PROGBITS        00011000 001000 000000 00  WA  0   0  1
+  [ 3] .bss              NOBITS          00011000 001000 000000 00  WA  0   0  1
+```
+
+**Disassembly:**
+```
+00010054 <main>:
+   10054:   1101                    addi    sp,sp,-32
+   10056:   ec22                    sd      s0,24(sp)
+   10058:   1000                    addi    s0,sp,32
+   1005a:   a001                    j       1005a <main+0x6>
+```
+
+**📋 Task Checklist**
+
+| Step | Description | Status |
+|------|-------------|--------|
+| 3.1  | Copy `main.elf` to task3 directory | ✅ |
+| 3.2  | Analyze ELF header | ✅ |
+| 3.3  | Examine section headers | ✅ |
+| 3.4  | Check program headers | ✅ |
+| 3.5  | Display symbol table | ✅ |
+| 3.6  | Generate disassembly | ✅ |
+| 3.7  | Document file properties | ✅ |
+| 3.8  | Take screenshots of outputs | 🔲 |
+
 ### Screenshot
 ![image](https://github.com/user-attachments/assets/af39c9da-4a96-4403-bc80-46136fe9ab16)
 ![image](https://github.com/user-attachments/assets/b71a577c-bd4f-4cba-963d-2aa157d94936)
 ![image](https://github.com/user-attachments/assets/e5ae8391-2e7e-4cd0-a475-78df5161ac00)
+**🧠 Analysis Explanation**
 
+This task provides deep insight into the RISC-V ELF binary structure:
 
-### 📋 Task Checklist
-| Task # | Description | Done? |
-|--------|-------------|-------|
-| 2.1 | Copy or reuse hello.c from Task 1 | ✅ |
-| 2.2 | Compile to object file: hello.o | ✅ |
-| 2.3 | Link to ELF executable: hello.elf | ✅ |
-| 2.4 | Confirm ELF file is created via ls -lh hello.elf | ✅ |
-| 2.5 | Capture screenshot of ELF generation in terminal | 🔲 |
+1. **ELF Header**: Confirms 32-bit RISC-V architecture, little-endian format, and entry point
+2. **Sections**:
+   - `.text`: Contains executable code (main function)
+   - `.data`: Initialized data (empty in this case)
+   - `.bss`: Uninitialized data (empty in this case)
+3. **Disassembly**: Shows the actual RISC-V instructions:
+   - Stack pointer adjustment (`addi sp,sp,-32`)
+   - Frame pointer setup
+   - Infinite loop jump instruction (`j 1005a`)
+4. **Symbols**: Displays function names, addresses, and linkage information
 
+**🔍 Key Observations**
 
+- The infinite loop `while(1);` translates to a simple jump instruction
+- Minimal stack frame setup despite simple code
+- Standard RISC-V calling convention followed
+- Entry point correctly set to main function address
+- Binary is properly linked and executable
 
-### 📘 Explanation
-Linking is the second key step in the embedded toolchain pipeline:
-- hello.c is first compiled into hello.o (raw code + symbol info)
-- Then hello.o is linked to generate hello.elf — a proper executable with:
-  - Program headers
-  - Sections like .text, .data, .bss
-  - Entry point (_start or main)
-- hello.elf can now be inspected, simulated, or flashed (later)
+**📌 Learning Outcomes**
+
+- Understanding ELF binary format structure
+- RISC-V assembly instruction encoding
+- How C code translates to RISC-V assembly
+- Toolchain analysis capabilities
+- Memory layout and section organization
+
 
 ---
 
