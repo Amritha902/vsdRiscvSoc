@@ -1,6 +1,5 @@
-# RISC-V Toolchain Tasks - Complete Guide
+# RISC-V Toolchain Tasks - Amritha S
 
-This repository contains a comprehensive set of 17 tasks designed to verify and demonstrate the RISC-V cross-compilation toolchain functionality. Each task builds upon the previous ones, progressing from basic compilation to advanced embedded systems programming concepts.
 
 ## Table of Contents
 
